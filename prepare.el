@@ -114,27 +114,17 @@
       (with-current-buffer curbuf
 	(let ((inhibit-read-only t))
 	  (erase-buffer)
-	  (prepare-insert-filepath)))))
+	  (prepare-insert-filepath))
 
-  (let ((outbuf (get-buffer-create prepare-buf-name)))
-  (with-current-buffer outbuf
-    (goto-char (point-min))
-    ;; ugly
-    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
-      (move-beginning-of-line 1)
-      (let* ((current-line (buffer-substring (line-beginning-position) (line-end-position)))
-	    (lb (line-beginning-position))
-	    (le (line-end-position))
-	    (inhibit-read-only t)
-	    (current-file (prepare/get-filename current-line))
-	    (file-begining (+ lb 2))
-	    (file-ending le))
-	
-	(put-text-property lb le 'mouse-face 'highlight)
-	(put-text-property file-begining file-ending 'keymap prepare/keymap)
-	(forward-line 1))))))
+	(goto-char (point-min))		; 回到开头
 
-
-
-
-
+	(while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
+	  (move-beginning-of-line 1)
+	  (let* ((lb (line-beginning-position))
+		 (le (line-end-position))
+		 (file-begining (+ lb 2))
+		 (file-ending le))
+	    (let ((inhibit-read-only t))
+	      (put-text-property lb le 'mouse-face 'highlight)
+	      (put-text-property file-begining file-ending 'keymap prepare/keymap)))
+	  (forward-line 1))))
