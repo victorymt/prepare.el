@@ -47,7 +47,6 @@
   (switch-to-buffer (get-buffer-create prepare-buf-name))
   (prepare-file-mode))
 
-;; +TODO Bugs: 打开模式的时候没有从预先的文件读取
 (define-derived-mode prepare-file-mode text-mode "Prepare"
   (use-local-map prepare-key-map)
   (setq-local buffer-read-only nil)
