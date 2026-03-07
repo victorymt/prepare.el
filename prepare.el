@@ -59,7 +59,28 @@
 
 (defun save-to-file ()
   (interactive)
-  (write-region (point-min) (point-max) prepare-file))
+  (with-temp-file prepare-file
+    (dolist (file prepare-files-list)
+      (insert file)
+      (insert "\n"))))
+
+(defun prepare-add-filepath ()
+  (interactive)
+  (let ((filepath (read-file-name "File: ")))
+    (add-to-list 'prepare-files-list filepath)
+    (with-current-buffer (get-buffer-create prepare-buf-name)
+      (let ((inhibit-read-only t))
+	(goto-char (point-max))
+	(move-beginning-of-line 1)
+	(insert "  ")
+	(insert filepath)
+	(let* ((lb (line-beginning-position))
+	       (le (line-end-position))
+	       (file-begining (+ lb 2))
+	       (file-ending le))
+	  (put-text-property lb le 'mouse-face 'highlight)
+	  (put-text-property file-begining file-ending 'keymap prepare/keymap))
+	(insert "\n")))))
 
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
@@ -67,6 +88,7 @@
   "A" #'prepare-add-filepath
   "D" #'prepare-delete-filepath
   "C-s" #'save-to-file)
+
 
 (defun prepare-start-mode ()
   (interactive)
@@ -122,9 +144,9 @@
 	  (move-beginning-of-line 1)
 	  (let* ((lb (line-beginning-position))
 		 (le (line-end-position))
-		 (file-begining (+ lb 2))
+		 (file-begining (+ lb 2)) ; 这里与格式有关要主意
 		 (file-ending le))
 	    (let ((inhibit-read-only t))
 	      (put-text-property lb le 'mouse-face 'highlight)
 	      (put-text-property file-begining file-ending 'keymap prepare/keymap)))
-	  (forward-line 1))))
+	  (forward-line 1))))))
