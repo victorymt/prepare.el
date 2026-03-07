@@ -74,6 +74,7 @@
 	(move-beginning-of-line 1)
 	(insert "  ")
 	(insert filepath)
+	
 	(let* ((lb (line-beginning-position))
 	       (le (line-end-position))
 	       (file-begining (+ lb 2))
@@ -81,6 +82,17 @@
 	  (put-text-property lb le 'mouse-face 'highlight)
 	  (put-text-property file-begining file-ending 'keymap prepare/keymap))
 	(insert "\n")))))
+
+(defun prepare-delete-filepath ()
+  (interactive)
+  (let* ((lb (line-beginning-position))
+	 (le (line-end-position))
+	 (file-begining (+ lb 2))
+	 (file-ending le))
+    (let ((del-file-path (buffer-substring file-begining file-ending)))
+      (setq prepare-files-list (delete del-file-path prepare-files-list)))
+    (let ((inhibit-read-only t))
+      (delete-region lb (+ le 1)))))	; 把 \n 也删除
 
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
