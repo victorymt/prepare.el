@@ -42,9 +42,11 @@
 ;; md 我觉得这真是个好主意，但我决定先实现当前的项目，就当熟悉 elisp 编程了。这个主意以后再实现吧。
 ;; 我又想了想，用 dired 操作的删除的是文件，而我要的是删除这个文件在当前缓冲区的字符路径，需求不一样
 
+(setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
 (defvar prepare-file "~/.emacs.d/.prepare")
 (defvar prepare/keymap (make-sparse-keymap))
+(defvar prepare-files-list '())
 (define-key prepare/keymap (kbd "RET") 'prepare/map)
 
 (defun prepare-next-line ()
@@ -73,35 +75,64 @@
 
 (define-derived-mode prepare-file-mode text-mode "Prepare"
   (use-local-map prepare-key-map)
-  (setq-local buffer-read-only nil)
+  (setq-local buffer-read-only t)
   (setq mode-name "Prepare")
-  (let ((curbuf (get-buffer-create prepare-buf-name)))
-    (when (buffer-modified-p)
-      (write-region (point-min) (point-max) prepare-file)
-      (erase-buffer))
-    (when (file-regular-p prepare-file)
-      (insert-file-contents prepare-file)))
   
-  (let ((outbuf (get-buffer-create prepare-buf-name)))
-  (with-current-buffer outbuf
-    (goto-char (point-min))
-    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
-      (let ((current-line (buffer-substring (line-beginning-position) (line-end-position)))
-	    (lb (line-beginning-position))
-	    (le (line-end-position))
-	    (inhibit-read-only t))	; 临时可写
-	
-	(put-text-property lb le 'mouse-face 'highlight)
-	(when (file-regular-p current-line)
-	  (put-text-property lb le 'keymap prepare/keymap))
-	(forward-line 1)))))
- 
+  ;; curent-line [D /filename]
+  (defun prepare/get-filename (current-line)
+    (if (> (length current-line) 2)
+	(substring current-line 2)
+      nil))
+  ;; 将 .prepare 中的内容加入到 prepre-buf 中，每一行需要处理加入格式
+  ;; 或者读入一个全局变量，保存这个文件的列表
+  (defun prepare-insert-filepath ()
+    (dolist (filepath prepare-files-list)
+      (insert "  ")
+      (insert filepath)
+      (insert "\n")))
+  
   (defun prepare/map ()
     (interactive)
     (let* ((ps (or (previous-single-property-change (point) 'keymap) (point-min)))
 	   (pe (or (next-single-property-change (point) 'keymap) (point-max)))
-	   (current-line (buffer-substring ps pe)))
-      (find-file-other-window (string-trim current-line)))))
+	   (current-line (buffer-substring ps pe))
+	   (current-file (string-trim current-line)))
+      (if (file-exists-p current-file)
+	  (find-file-other-window current-file)
+	(message "[ %s ] not exists" current-file))))
+
+  (let ((curbuf (get-buffer-create prepare-buf-name)))
+    (when (file-regular-p prepare-file)
+      (with-temp-buffer
+	(insert-file-contents prepare-file)
+	(while (not (eobp))
+	  (let* ((lb (line-beginning-position))
+		 (le (line-end-position))
+		 (current-line (buffer-substring lb le)))
+	    (add-to-list 'prepare-files-list current-line)
+	    (forward-line))))
+      (with-current-buffer curbuf
+	(let ((inhibit-read-only t))
+	  (erase-buffer)
+	  (prepare-insert-filepath)))))
+
+  (let ((outbuf (get-buffer-create prepare-buf-name)))
+  (with-current-buffer outbuf
+    (goto-char (point-min))
+    ;; ugly
+    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
+      (move-beginning-of-line 1)
+      (let* ((current-line (buffer-substring (line-beginning-position) (line-end-position)))
+	    (lb (line-beginning-position))
+	    (le (line-end-position))
+	    (inhibit-read-only t)
+	    (current-file (prepare/get-filename current-line))
+	    (file-begining (+ lb 2))
+	    (file-ending le))
+	
+	(put-text-property lb le 'mouse-face 'highlight)
+	(put-text-property file-begining file-ending 'keymap prepare/keymap)
+	(forward-line 1))))))
 
 
 
