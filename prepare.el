@@ -1,7 +1,6 @@
 ;; prepare file list
 ;; prepare file mode
-;; w: 编辑模式
-;; C-r: 进入只读模式
+
 ;; n/p
 ;; RET : 跳转
 ;; R : 类似 dired 的 rename
@@ -12,30 +11,28 @@
 ;; u : 删除标记
 
 ;; Bugs or Todo:
-;; 删除 C-r, w，添加 A，D
 ;; 添加一个函数，在其它 buffer 中调用，如果 visit 了一个 file, 就把这个 file 的 path 加入 .prepare 中
 ;; 对称的，有一个删除当前 buffer visit 的 file 在 prepare 中的 path
 
-;; 所以这是快捷键的设置不到位的缘故。
-;; 我需要一个 方法获得当前光标下的文件名 / 获得被标记的文件的列表 
-;; 要研究 dired 的 dired-get-marked-files 是怎么实现的，它似乎不光支持返回标记的文件的列表还有 current file
+;; 要研究 dired 的 dired-get-marked-files 是怎么实现的
 
 ;; Think:
-;; 文件添加属性的阶段只有进入 prepare mode. 于是想要实现 A 就需要获得文件路径写入 buf 的时候添加属性
-;; 由于属性添加和处理的特性，更高效的方式是遍历一遍要处理的内容，同时在遍历的过程中添加修改
-;; [X] 我原先想的获得当前行的起始和结束位置看来似乎没有必要，我只需要 forward-line 就足够了，由于一行只有一个文件，通过一个 move-to-file 判断是否有这个文件路径同时进行移动 point ，可是 move-to-file-start 和 move-to-file-end 是怎么实现的
-;; md dired 用的 ls --dired，会自动给文件名添加标记，没有参考性
-;; 我还是需要获得一行，不过我可以给 mark 预留一个空间
-;; 于是我需要沿用原来的方式，通过字符串分割的方式获得标记？
+;; 现在最基础的部分已经完成
+;; 接下来需要完成的部分是 mark 和 unmark 以及根据 mark 删除 filepath.
+;; mark 部分没什么好说的，就到开头 replace 一个字符就可以了
+;; unmark 也差不多
+;; 根据 mark 删除这个，首先要获得被标记的 filepath,之后删除就可以了
+;; 要么遍历整个 buffer，要么使用 dired 的方式，用正则表达式匹配一遍。 
+;; 还有就是许多函数暴露在外边，还有 define-derived-mode 中的函数有点多了，考虑利用 hook 挂载
+;; 还有就是当前的在 buffer 中插入格式处理的太粗糙了，需要一个更低层的接口
+;; 另外就是给可以访问的链接加上 dired 那样的蓝色
+;; 最后是变量命名，看看有没有约定俗称的方案
 ;; 这样子：预留两个字符的大小
 ;; D /home/file1.txt
 ;;   /home/file2.txt
 
-;; 关于 readonly 的时机
-;; 进入 prepare mode 是 readonly
-;; (let ((inhibit-read-only t))
-;;   (delete-char 1)
-;;   (insert dired-del-marker))
+;; Learn Or Research
+;; 模式加 hook
 
 ;; Idea:
 ;; 话说，我能不能直接 将 .prepare 设置为一个目录，要准备的文件直接链接在里面，然后我就可以用 dired 了
@@ -79,8 +76,7 @@
 	       (le (line-end-position))
 	       (file-begining (+ lb 2))
 	       (file-ending le))
-	  (put-text-property lb le 'mouse-face 'highlight)
-	  (put-text-property file-begining file-ending 'keymap prepare/keymap))
+	  (prepare-add-property lb le))
 	(insert "\n")))))
 
 (defun prepare-delete-filepath ()
@@ -125,6 +121,12 @@
       (insert filepath)
       (insert "\n")))
   
+  (defun prepare-add-property (line-start line-end)
+    (put-text-property line-start line-end 'mouse-face 'highlight)
+    (let ((file-begining (+ line-start 2))
+	  (file-ending line-end))
+      (put-text-property file-begining file-ending 'keymap prepare/keymap)))
+  
   (defun prepare/map ()
     (interactive)
     (let* ((ps (or (previous-single-property-change (point) 'keymap) (point-min)))
@@ -156,9 +158,6 @@
 	  (move-beginning-of-line 1)
 	  (let* ((lb (line-beginning-position))
 		 (le (line-end-position))
-		 (file-begining (+ lb 2)) ; 这里与格式有关要主意
-		 (file-ending le))
 	    (let ((inhibit-read-only t))
-	      (put-text-property lb le 'mouse-face 'highlight)
-	      (put-text-property file-begining file-ending 'keymap prepare/keymap)))
+	      (prepare-add-property lb le)
 	  (forward-line 1))))))
