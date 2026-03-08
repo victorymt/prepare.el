@@ -146,10 +146,12 @@
     (setq prepare-marked-files-list '()))
   (prepare-refresh))
 
-;; TODO
+;; 就是将 .prepare 又读入全局变量并且 refresh，目前会导致顺序改变
 (defun prepare-reset ()
   (interactive)
-  (ignore))
+  (prepare-file->buffer->global_var)
+  (prepare-refresh))
+
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
   "p" #'prepare-previous-line
