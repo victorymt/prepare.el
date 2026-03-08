@@ -1,37 +1,5 @@
 ;; prepare file mode
 
-;; Bugs or Todo:
-;; 有个问题，有些函数我只想让它在 prepare mode 存在
-;; 添加一个函数，在其它 buffer 中调用，如果 visit 了一个 file, 就把这个 file 的 path 加入 .prepare 中
-;; 对称的，有一个删除当前 buffer visit 的 file 在 prepare 中的 path
-;; 我想再加入一个 note 的功能，并且是会保存到 .prepare 中的
-;; 这样的话，要修改的部分有 prepare-file->buffer->global_var，获得文件名，保存，全局变量列表里的类型从 string 变成了 cons
-;; 也就是说，除了 prepare-file->buffer->global_var 要大改
-;; 从全局变量获得文件名需要一个低级接口
-;; 从一行内获得文件名，获得 mark，获得 ... 都需要一个低级的接口
-
-;; Think:
-;; 还有就是许多函数暴露在外边，还有 define-derived-mode 中的函数有点多了，考虑利用 hook 挂载
-;; 还有就是当前的在 buffer 中插入格式处理的太粗糙了，需要一个更低层的接口
-;; 最后是变量命名，看看有没有约定俗称的方案
-;; 这样子：预留两个字符的大小
-;; D /home/file1.txt
-;;   /home/file2.txt
-
-;; 思路：
-;; 全部围绕着全局变量 prepare-files-list 和 prepare-marked-files-list 展开
-;; 删除，添加都是先修改这些全局变量，再更新界面
-;; 保存到文件就是保存全局变量的内容
-;; 读取文件就是读取到全局变量
-
-;; Learn Or Research
-;; 模式加 hook
-
-;; Idea:
-;; 话说，我能不能直接 将 .prepare 设置为一个目录，要准备的文件直接链接在里面，然后我就可以用 dired 了
-;; md 我觉得这真是个好主意，但我决定先实现当前的项目，就当熟悉 elisp 编程了。这个主意以后再实现吧。
-;; 我又想了想，用 dired 操作的删除的是文件，而我要的是删除这个文件在当前缓冲区的字符路径，需求不一样
-
 (require 'cl-lib)
 (setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
@@ -242,8 +210,8 @@
 	  (forward-line))))))
 
 (defun prepare--add-whole-property ()
-  (goto-char (point-min))		; 回到开头
-  (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
+  (goto-char (point-min))	       
+  (while (not (eobp))		
     (let* ((lb (line-beginning-position))
 	   (le (line-end-position)))
       (let ((inhibit-read-only t))
