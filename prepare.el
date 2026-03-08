@@ -13,18 +13,16 @@
 ;; r : reset 根据 .prepare 重新设置全局变量
 
 ;; Bugs or Todo:
+;; 有个问题，有些函数我只想让它在 prepare mode 存在
 ;; 添加一个函数，在其它 buffer 中调用，如果 visit 了一个 file, 就把这个 file 的 path 加入 .prepare 中
 ;; 对称的，有一个删除当前 buffer visit 的 file 在 prepare 中的 path
-
-;; 要研究 dired 的 dired-get-marked-files 是怎么实现的
+;; 我想再加入一个 note 的功能，并且是会保存到 .prepare 中的
+;; 这样的话，要修改的部分有 prepare-file->buffer->global_var，获得文件名，保存，全局变量列表里的类型从 string 变成了 cons
+;; 也就是说，除了 prepare-file->buffer->global_var 要大改
+;; 从全局变量获得文件名需要一个低级接口
+;; 从一行内获得文件名，获得 mark，获得 ... 都需要一个低级的接口
 
 ;; Think:
-;; 现在最基础的部分已经完成
-;; 接下来需要完成的部分是 mark 和 unmark 以及根据 mark 删除 filepath.
-;; mark 部分没什么好说的，就到开头 replace 一个字符就可以了
-;; unmark 也差不多
-;; 根据 mark 删除这个，首先要获得被标记的 filepath,之后删除就可以了
-;; 要么遍历整个 buffer，要么使用 dired 的方式，用正则表达式匹配一遍。 
 ;; 还有就是许多函数暴露在外边，还有 define-derived-mode 中的函数有点多了，考虑利用 hook 挂载
 ;; 还有就是当前的在 buffer 中插入格式处理的太粗糙了，需要一个更低层的接口
 ;; 另外就是给可以访问的链接加上 dired 那样的蓝色
@@ -54,6 +52,17 @@
 (defvar prepare/keymap (make-sparse-keymap))
 (defvar prepare-files-list '())
 (defvar prepare-marked-files-list '())
+
+(defun prepare/map ()
+  (interactive)
+  (let* ((ps (or (previous-single-property-change (point) 'keymap) (point-min)))
+	 (pe (or (next-single-property-change (point) 'keymap) (point-max)))
+	 (current-line (buffer-substring ps pe))
+	 (current-file (string-trim current-line)))
+    (if (file-exists-p current-file)
+	(find-file-other-window current-file)
+      (message "[ %s ] not exists" current-file))))
+
 (define-key prepare/keymap (kbd "RET") 'prepare/map)
 
 (defun prepare-next-line ()
@@ -205,18 +214,9 @@
     (put-text-property line-start line-end 'mouse-face 'highlight)
     (let ((file-begining (+ line-start 2))
 	  (file-ending line-end))
-      (put-text-property file-begining file-ending 'keymap prepare/keymap)))
+      (put-text-property file-begining file-ending 'keymap prepare/keymap)
+      (put-text-property file-begining file-ending 'face '(:foreground "#96a6c8"))))
   
-  (defun prepare/map ()
-    (interactive)
-    (let* ((ps (or (previous-single-property-change (point) 'keymap) (point-min)))
-	   (pe (or (next-single-property-change (point) 'keymap) (point-max)))
-	   (current-line (buffer-substring ps pe))
-	   (current-file (string-trim current-line)))
-      (if (file-exists-p current-file)
-	  (find-file-other-window current-file)
-	(message "[ %s ] not exists" current-file))))
-
   (defun prepare-file->buffer->global_var ()
     (when (file-regular-p prepare-file)
       (with-temp-buffer
