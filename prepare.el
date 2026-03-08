@@ -50,6 +50,7 @@
 (require 'cl-lib)
 (setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
+(defvar prepare-buffer (get-buffer-create prepare-buf-name))
 (defvar prepare-file "~/.emacs.d/.prepare")
 (defvar prepare/keymap (make-sparse-keymap))
 (defvar prepare-files-list '())
@@ -76,7 +77,7 @@
   (interactive)
   (let ((filepath (read-file-name "File: ")))
     (add-to-list 'prepare-files-list filepath)
-    (with-current-buffer (get-buffer-create prepare-buf-name)
+    (with-current-buffer prepare-buffer
       (let ((inhibit-read-only t))
 	(goto-char (point-max))
 	(move-beginning-of-line 1)
@@ -116,7 +117,7 @@
 ;; 这里 dired 使用了 正则表达式，我就先暴力遍历所有吧
 (defun prepare-get-marked-files ()
   (interactive)
-  (with-current-buffer (get-buffer-create prepare-buf-name)
+  (with-current-buffer prepare-buffer
     (goto-char (point-min))
     (while (not (eobp))
       (let* ((lb (line-beginning-position))
@@ -130,7 +131,7 @@
 ;; 根据 prepare-files-list 更新 prepare-buf
 (defun prepare-refresh ()
   (interactive)
-  (with-current-buffer (get-buffer-create prepare-buf-name)
+  (with-current-buffer prepare-buffer
     (let ((inhibit-read-only t))
       (erase-buffer)
       (prepare-insert-filepath-rec))))
@@ -161,7 +162,7 @@
 
 (defun prepare-start-mode ()
   (interactive)
-  (switch-to-buffer (get-buffer-create prepare-buf-name))
+  (switch-to-buffer prepare-buffer)
   (prepare-file-mode))
 
 (define-derived-mode prepare-file-mode text-mode "Prepare"
@@ -226,7 +227,7 @@
   ;; == main ==
   (prepare-file->buffer->global_var)
   
-  (with-current-buffer (get-buffer-create prepare-buf-name)
+  (with-current-buffer prepare-buffer
     (let ((inhibit-read-only t))
       (erase-buffer)
       (prepare-insert-filepath-rec)) 
