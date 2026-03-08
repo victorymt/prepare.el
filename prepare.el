@@ -103,6 +103,7 @@
 	    (t
 	     (delete-region (- lb 1) le))))))
 
+;; 现在有个问题，mark unmark 都只是单纯的加个标记，于是还需要额外的函数去获得被标记的列表，不过似乎不是什么大问题，列表也不可能太大。
 (defun prepare-set-mark ()
   (interactive)
   (let ((lb (line-beginning-position)))
@@ -199,10 +200,10 @@
 
 (defun prepare--add-property (line-start line-end)
   (put-text-property line-start line-end 'mouse-face 'highlight)
-  (let ((file-begining (+ line-start 2))
+  (let ((file-beginning (+ line-start 2))
 	(file-ending line-end))
-    (put-text-property file-begining file-ending 'keymap prepare/keymap)
-    (put-text-property file-begining file-ending 'face '(:foreground "#96a6c8"))))
+    (put-text-property file-beginning file-ending 'keymap prepare/keymap)
+    (put-text-property file-beginning file-ending 'face '(:foreground "#96a6c8"))))
 
 (defun prepare--file->buffer->global_var ()
   (when (file-regular-p prepare-file)
