@@ -9,6 +9,8 @@
 ;; D : 删除当前的文件
 ;; x : 删除标记的文件路径
 ;; u : 删除标记
+;; g : 刷新显示
+;; r : reset 根据 .prepare 重新设置全局变量
 
 ;; Bugs or Todo:
 ;; 添加一个函数，在其它 buffer 中调用，如果 visit 了一个 file, 就把这个 file 的 path 加入 .prepare 中
@@ -30,6 +32,12 @@
 ;; 这样子：预留两个字符的大小
 ;; D /home/file1.txt
 ;;   /home/file2.txt
+
+;; 思路：
+;; 全部围绕着全局变量 prepare-files-list 和 prepare-marked-files-list 展开
+;; 删除，添加都是先修改这些全局变量，再更新界面
+;; 保存到文件就是保存全局变量的内容
+;; 读取文件就是读取到全局变量
 
 ;; Learn Or Research
 ;; 模式加 hook
@@ -79,8 +87,7 @@
 	       (le (line-end-position))
 	       (file-begining (+ lb 2))
 	       (file-ending le))
-	  (prepare-add-property lb le))
-	(insert "\n")))))
+	  (prepare-add-property lb le))))))	   
 
 (defun prepare-delete-filepath ()
   (interactive)
@@ -122,18 +129,24 @@
 
 ;; 根据 prepare-files-list 更新 prepare-buf
 (defun prepare-refresh ()
+  (interactive)
   (with-current-buffer (get-buffer-create prepare-buf-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (prepare-insert-filepath))))
+      (prepare-insert-filepath-rec))))
 
 (defun prepare-delete-marked-filepath ()
   (interactive)
   (prepare-get-marked-files)
   (let ((rest-files (cl-set-difference prepare-files-list prepare-marked-files-list :test 'equal)))
-    (setq prepare-files-list rest-files))
+    (setq prepare-files-list rest-files)
+    (setq prepare-marked-files-list '()))
   (prepare-refresh))
 
+;; TODO
+(defun prepare-reset ()
+  (interactive)
+  (ignore))
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
   "p" #'prepare-previous-line
@@ -142,7 +155,9 @@
   "d" #'prepare-set-mark
   "u" #'prepare-unmark
   "x" #'prepare-delete-marked-filepath
-  "C-s" #'save-to-file)
+  "C-s" #'save-to-file
+  "g" #'prepare-refresh
+  "r" #'prepare-reset)
 
 (defun prepare-start-mode ()
   (interactive)
@@ -159,13 +174,27 @@
     (if (> (length current-line) 2)
 	(substring-no-properties current-line 2)
       nil))
-  ;; 将 .prepare 中的内容加入到 prepre-buf 中，每一行需要处理加入格式
+
   ;; 或者读入一个全局变量，保存这个文件的列表
   (defun prepare-insert-filepath ()
-    (dolist (filepath prepare-files-list)
-      (insert "  ")
-      (insert filepath)
-      (insert "\n")))
+    (let ((ln (length prepare-files-list)))
+      (dolist (filepath prepare-files-list)
+	(insert "  ")
+	(insert filepath)
+	(insert "\n"))))		; 这个版本最后一行是 \n，rec 不是
+
+  (defun prepare-insert-filepath-rec ()
+    (prepare-insert-filepath* prepare-files-list))
+  (defun prepare-insert-filepath* (list)
+    (cond ((null list) nil)
+	  ((null (cdr list))
+	   (insert "  ")
+	   (insert (car list)))
+	  (t
+	   (insert "  ")
+	   (insert (car list))
+	   (insert "\n")
+	   (prepare-insert-filepath* (cdr list)))))
   
   (defun prepare-add-property (line-start line-end)
     (put-text-property line-start line-end 'mouse-face 'highlight)
@@ -191,12 +220,12 @@
 	  (let* ((lb (line-beginning-position))
 		 (le (line-end-position))
 		 (current-line (buffer-substring lb le)))
-	    (add-to-list 'prepare-files-list current-line)
+	    (add-to-list 'prepare-files-list current-line) ;这里可以提取出一个函数从文件 -> prepare-files-list
 	    (forward-line))))
       (with-current-buffer curbuf
 	(let ((inhibit-read-only t))
 	  (erase-buffer)
-	  (prepare-insert-filepath))
+	  (prepare-insert-filepath-rec)) 
 
 	(goto-char (point-min))		; 回到开头
 
