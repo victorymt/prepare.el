@@ -220,7 +220,6 @@
 (defun prepare--add-whole-property ()
   (goto-char (point-min))		; 回到开头
   (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
-    (move-beginning-of-line 1)
     (let* ((lb (line-beginning-position))
 	   (le (line-end-position)))
       (let ((inhibit-read-only t))
