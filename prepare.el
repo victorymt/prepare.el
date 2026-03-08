@@ -40,6 +40,29 @@
 (defvar prepare-files-list '())
 (defvar prepare-marked-files-list '())
 
+
+;;; global
+
+(defun prepare-add-current-buffer-file ()
+  (interactive)
+  (let  ((current-file (buffer-file-name)))
+    (unless (null current-file)
+      (add-to-list 'prepare-files-list current-file t))))
+
+(defun prepare-remove-current-buffer-file ()
+  (interactive)
+  (let  ((current-file (buffer-file-name)))
+    (unless (null current-file)
+      (setq prepare-files-list (delete del-file-path prepare-files-list)))))
+
+(defun prepare-save-current-file-lists ()
+  (save-to-file))
+
+(global-set-key (kbd "C-c b") #'prepare-add-current-buffer-file)
+(global-set-key (kbd "C-c r") #'prepare-remove-current-buffer-file)
+;;;
+
+
 (defun prepare/map ()
   (interactive)
   (let* ((ps (or (previous-single-property-change (point) 'keymap) (point-min)))
@@ -95,13 +118,14 @@
 	 (file-begining (+ lb 2))
 	 (file-ending le))
     (let ((del-file-path (buffer-substring file-begining file-ending)))
-      (setq prepare-files-list (delete del-file-path prepare-files-list)))
-    (let ((inhibit-read-only t))
-      (cond ((and (= le (point-max)) (= lb (point-min))) (delete-region lb le))
-	    ((= le (point-max)) (delete-region (- lb 1) le))
-	    ((= lb (point-min)) (delete-region lb le))
-	    (t
-	     (delete-region (- lb 1) le))))))
+      (setq prepare-files-list (delete del-file-path prepare-files-list))
+      (let ((inhibit-read-only t))
+	(cond ((and (= le (point-max)) (= lb (point-min))) (delete-region lb le))
+	      ((= le (point-max)) (delete-region (- lb 1) le))
+	      ((= lb (point-min)) (delete-region lb (+ le 1)))
+	      (t
+	       (delete-region (- lb 1) le)))
+	(message "Delete: %s" del-file-path)))))
 
 ;; 现在有个问题，mark unmark 都只是单纯的加个标记，于是还需要额外的函数去获得被标记的列表，不过似乎不是什么大问题，列表也不可能太大。
 (defun prepare-set-mark ()
