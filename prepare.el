@@ -25,7 +25,6 @@
 ;; Think:
 ;; 还有就是许多函数暴露在外边，还有 define-derived-mode 中的函数有点多了，考虑利用 hook 挂载
 ;; 还有就是当前的在 buffer 中插入格式处理的太粗糙了，需要一个更低层的接口
-;; 另外就是给可以访问的链接加上 dired 那样的蓝色
 ;; 最后是变量命名，看看有没有约定俗称的方案
 ;; 这样子：预留两个字符的大小
 ;; D /home/file1.txt
@@ -85,7 +84,7 @@
   (interactive)
   (let ((filepath (read-file-name "File: "))
 	(old-files-list prepare-files-list))
-    (add-to-list 'prepare-files-list filepath)
+    (add-to-list 'prepare-files-list filepath t) 
     (unless (equal old-files-list prepare-files-list)
       (with-current-buffer (get-buffer-create prepare-buf-name)
 	(let ((inhibit-read-only t))
@@ -110,7 +109,9 @@
     (let ((del-file-path (buffer-substring file-begining file-ending)))
       (setq prepare-files-list (delete del-file-path prepare-files-list)))
     (let ((inhibit-read-only t))
-      (delete-region lb (+ le 1)))))	; 把 \n 也删除
+      (if (= le (point-max))
+	  (delete-region lb le)
+	(delete-region lb (+ le 1))))))
 
 (defun prepare-set-mark ()
   (interactive)
@@ -145,7 +146,8 @@
   (with-current-buffer (get-buffer-create prepare-buf-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (prepare-insert-filepath-rec))))
+      (prepare-insert-filepath-rec)
+      (prepare-add-whole-property))))
 
 (defun prepare-delete-marked-filepath ()
   (interactive)
@@ -225,8 +227,19 @@
 	  (let* ((lb (line-beginning-position))
 		 (le (line-end-position))
 		 (current-line (buffer-substring lb le)))
-	    (add-to-list 'prepare-files-list current-line)
+	    (when (> (length current-line) 0)
+	      (add-to-list 'prepare-files-list current-line t)) ; 加在末尾才是正确的
 	    (forward-line))))))
+  
+  (defun prepare-add-whole-property ()
+    (goto-char (point-min))		; 回到开头
+    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
+      (move-beginning-of-line 1)
+      (let* ((lb (line-beginning-position))
+	     (le (line-end-position)))
+	(let ((inhibit-read-only t))
+	  (prepare-add-property lb le))
+	(forward-line 1))))
 
   ;; == main ==
   (prepare-file->buffer->global_var)
@@ -234,14 +247,5 @@
   (with-current-buffer (get-buffer-create prepare-buf-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (prepare-insert-filepath-rec)) 
-
-    (goto-char (point-min))		; 回到开头
-
-    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
-      (move-beginning-of-line 1)
-      (let* ((lb (line-beginning-position))
-	     (le (line-end-position)))
-	(let ((inhibit-read-only t))
-	  (prepare-add-property lb le))
-	(forward-line 1)))))
+      (prepare-insert-filepath-rec)
+      (prepare-add-whole-property))))
