@@ -39,11 +39,13 @@
 ;; md 我觉得这真是个好主意，但我决定先实现当前的项目，就当熟悉 elisp 编程了。这个主意以后再实现吧。
 ;; 我又想了想，用 dired 操作的删除的是文件，而我要的是删除这个文件在当前缓冲区的字符路径，需求不一样
 
+(require 'cl-lib)
 (setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
 (defvar prepare-file "~/.emacs.d/.prepare")
 (defvar prepare/keymap (make-sparse-keymap))
 (defvar prepare-files-list '())
+(defvar prepare-marked-files-list '())
 (define-key prepare/keymap (kbd "RET") 'prepare/map)
 
 (defun prepare-next-line ()
@@ -59,7 +61,8 @@
   (with-temp-file prepare-file
     (dolist (file prepare-files-list)
       (insert file)
-      (insert "\n"))))
+      (insert "\n")))
+  (message "Saved"))
 
 (defun prepare-add-filepath ()
   (interactive)
@@ -90,13 +93,56 @@
     (let ((inhibit-read-only t))
       (delete-region lb (+ le 1)))))	; 把 \n 也删除
 
+(defun prepare-set-mark ()
+  (interactive)
+  (let ((lb (line-beginning-position)))
+    (let ((inhibit-read-only t))
+      (subst-char-in-region lb (+ lb 1) ?\s ?D)))
+  (forward-line))
+
+(defun prepare-unmark ()
+  (interactive)
+  (let ((lb (line-beginning-position))
+	(inhibit-read-only t))
+    (subst-char-in-region lb (+ lb 1) ?D ?\s)))
+
+;; 这里 dired 使用了 正则表达式，我就先暴力遍历所有吧
+(defun prepare-get-marked-files ()
+  (interactive)
+  (with-current-buffer (get-buffer-create prepare-buf-name)
+    (goto-char (point-min))
+    (while (not (eobp))
+      (let* ((lb (line-beginning-position))
+	    (le (line-end-position))
+	    (current-line (buffer-substring lb le)))
+	(when (eql ?D (char-after lb))
+	  (let ((file (prepare-get-filename current-line)))
+	    (add-to-list 'prepare-marked-files-list file))))
+      (forward-line 1))))
+
+;; 根据 prepare-files-list 更新 prepare-buf
+(defun prepare-refresh ()
+  (with-current-buffer (get-buffer-create prepare-buf-name)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (prepare-insert-filepath))))
+
+(defun prepare-delete-marked-filepath ()
+  (interactive)
+  (prepare-get-marked-files)
+  (let ((rest-files (cl-set-difference prepare-files-list prepare-marked-files-list :test 'equal)))
+    (setq prepare-files-list rest-files))
+  (prepare-refresh))
+
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
   "p" #'prepare-previous-line
   "A" #'prepare-add-filepath
   "D" #'prepare-delete-filepath
+  "d" #'prepare-set-mark
+  "u" #'prepare-unmark
+  "x" #'prepare-delete-marked-filepath
   "C-s" #'save-to-file)
-
 
 (defun prepare-start-mode ()
   (interactive)
@@ -109,9 +155,9 @@
   (setq mode-name "Prepare")
   
   ;; curent-line [D /filename]
-  (defun prepare/get-filename (current-line)
+  (defun prepare-get-filename (current-line)
     (if (> (length current-line) 2)
-	(substring current-line 2)
+	(substring-no-properties current-line 2)
       nil))
   ;; 将 .prepare 中的内容加入到 prepre-buf 中，每一行需要处理加入格式
   ;; 或者读入一个全局变量，保存这个文件的列表
@@ -157,7 +203,7 @@
 	(while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
 	  (move-beginning-of-line 1)
 	  (let* ((lb (line-beginning-position))
-		 (le (line-end-position))
+		 (le (line-end-position)))
 	    (let ((inhibit-read-only t))
-	      (prepare-add-property lb le)
-	  (forward-line 1))))))
+	      (prepare-add-property lb le))
+	  (forward-line 1)))))))
