@@ -212,7 +212,7 @@
 	  (find-file-other-window current-file)
 	(message "[ %s ] not exists" current-file))))
 
-  (let ((curbuf (get-buffer-create prepare-buf-name)))
+  (defun prepare-file->buffer->global_var ()
     (when (file-regular-p prepare-file)
       (with-temp-buffer
 	(insert-file-contents prepare-file)
@@ -220,19 +220,23 @@
 	  (let* ((lb (line-beginning-position))
 		 (le (line-end-position))
 		 (current-line (buffer-substring lb le)))
-	    (add-to-list 'prepare-files-list current-line) ;这里可以提取出一个函数从文件 -> prepare-files-list
-	    (forward-line))))
-      (with-current-buffer curbuf
+	    (add-to-list 'prepare-files-list current-line)
+	    (forward-line))))))
+
+  ;; == main ==
+  (prepare-file->buffer->global_var)
+  
+  (with-current-buffer (get-buffer-create prepare-buf-name)
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (prepare-insert-filepath-rec)) 
+
+    (goto-char (point-min))		; 回到开头
+
+    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
+      (move-beginning-of-line 1)
+      (let* ((lb (line-beginning-position))
+	     (le (line-end-position)))
 	(let ((inhibit-read-only t))
-	  (erase-buffer)
-	  (prepare-insert-filepath-rec)) 
-
-	(goto-char (point-min))		; 回到开头
-
-	(while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
-	  (move-beginning-of-line 1)
-	  (let* ((lb (line-beginning-position))
-		 (le (line-end-position)))
-	    (let ((inhibit-read-only t))
-	      (prepare-add-property lb le))
-	  (forward-line 1)))))))
+	  (prepare-add-property lb le))
+	(forward-line 1)))))
