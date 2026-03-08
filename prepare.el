@@ -1,16 +1,4 @@
-;; prepare file list
 ;; prepare file mode
-
-;; n/p
-;; RET : 跳转
-;; R : 类似 dired 的 rename
-;; A : 添加一个文件路径
-;; d : 标记要删除的文件路径
-;; D : 删除当前的文件
-;; x : 删除标记的文件路径
-;; u : 删除标记
-;; g : 刷新显示
-;; r : reset 根据 .prepare 重新设置全局变量
 
 ;; Bugs or Todo:
 ;; 有个问题，有些函数我只想让它在 prepare mode 存在
@@ -98,8 +86,9 @@
 		 (le (line-end-position))
 		 (file-begining (+ lb 2))
 		 (file-ending le))
-	    (prepare-add-property lb le)))))))
+	    (prepare--add-property lb le)))))))
 
+;; Bugs 多了上一行结尾的 \n
 (defun prepare-delete-filepath ()
   (interactive)
   (let* ((lb (line-beginning-position))
@@ -133,10 +122,10 @@
     (goto-char (point-min))
     (while (not (eobp))
       (let* ((lb (line-beginning-position))
-	    (le (line-end-position))
-	    (current-line (buffer-substring lb le)))
+	     (le (line-end-position))
+	     (current-line (buffer-substring lb le)))
 	(when (eql ?D (char-after lb))
-	  (let ((file (prepare-get-filename current-line)))
+	  (let ((file (prepare--get-filename current-line)))
 	    (add-to-list 'prepare-marked-files-list file))))
       (forward-line 1))))
 
@@ -146,8 +135,8 @@
   (with-current-buffer (get-buffer-create prepare-buf-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (prepare-insert-filepath-rec)
-      (prepare-add-whole-property))))
+      (prepare--insert-filepath-rec)
+      (prepare--add-whole-property))))
 
 (defun prepare-delete-marked-filepath ()
   (interactive)
@@ -160,7 +149,7 @@
 ;; 就是将 .prepare 又读入全局变量并且 refresh，目前会导致顺序改变
 (defun prepare-reset ()
   (interactive)
-  (prepare-file->buffer->global_var)
+  (prepare--file->buffer->global_var)
   (prepare-refresh))
 
 (defvar-keymap prepare-key-map
@@ -180,72 +169,69 @@
   (switch-to-buffer (get-buffer-create prepare-buf-name))
   (prepare-file-mode))
 
+;; curent-line [D /filename]
+(defun prepare--get-filename (current-line)
+  (if (> (length current-line) 2)
+      (substring-no-properties current-line 2)
+    nil))
+
+;; 或者读入一个全局变量，保存这个文件的列表
+(defun prepare--insert-filepath ()
+  (let ((ln (length prepare-files-list)))
+    (dolist (filepath prepare-files-list)
+      (insert "  ")
+      (insert filepath)
+      (insert "\n"))))		; 这个版本最后一行是 \n，rec 不是
+
+(defun prepare--insert-filepath-rec ()
+  (prepare--insert-filepath* prepare-files-list))
+(defun prepare--insert-filepath* (list)
+  (cond ((null list) nil)
+	((null (cdr list))
+	 (insert "  ")
+	 (insert (car list)))
+	(t
+	 (insert "  ")
+	 (insert (car list))
+	 (insert "\n")
+	 (prepare--insert-filepath* (cdr list)))))
+
+(defun prepare--add-property (line-start line-end)
+  (put-text-property line-start line-end 'mouse-face 'highlight)
+  (let ((file-begining (+ line-start 2))
+	(file-ending line-end))
+    (put-text-property file-begining file-ending 'keymap prepare/keymap)
+    (put-text-property file-begining file-ending 'face '(:foreground "#96a6c8"))))
+
+(defun prepare--file->buffer->global_var ()
+  (when (file-regular-p prepare-file)
+    (with-temp-buffer
+      (insert-file-contents prepare-file)
+      (while (not (eobp))
+	(let* ((lb (line-beginning-position))
+	       (le (line-end-position))
+	       (current-line (buffer-substring lb le)))
+	  (when (> (length current-line) 0)
+	    (add-to-list 'prepare-files-list current-line t)) ; 加在末尾才是正确的
+	  (forward-line))))))
+
+(defun prepare--add-whole-property ()
+  (goto-char (point-min))		; 回到开头
+  (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
+    (move-beginning-of-line 1)
+    (let* ((lb (line-beginning-position))
+	   (le (line-end-position)))
+      (let ((inhibit-read-only t))
+	(prepare--add-property lb le))
+      (forward-line 1))))
+
 (define-derived-mode prepare-file-mode text-mode "Prepare"
   (use-local-map prepare-key-map)
   (setq-local buffer-read-only t)
   (setq mode-name "Prepare")
-  
-  ;; curent-line [D /filename]
-  (defun prepare-get-filename (current-line)
-    (if (> (length current-line) 2)
-	(substring-no-properties current-line 2)
-      nil))
-
-  ;; 或者读入一个全局变量，保存这个文件的列表
-  (defun prepare-insert-filepath ()
-    (let ((ln (length prepare-files-list)))
-      (dolist (filepath prepare-files-list)
-	(insert "  ")
-	(insert filepath)
-	(insert "\n"))))		; 这个版本最后一行是 \n，rec 不是
-
-  (defun prepare-insert-filepath-rec ()
-    (prepare-insert-filepath* prepare-files-list))
-  (defun prepare-insert-filepath* (list)
-    (cond ((null list) nil)
-	  ((null (cdr list))
-	   (insert "  ")
-	   (insert (car list)))
-	  (t
-	   (insert "  ")
-	   (insert (car list))
-	   (insert "\n")
-	   (prepare-insert-filepath* (cdr list)))))
-  
-  (defun prepare-add-property (line-start line-end)
-    (put-text-property line-start line-end 'mouse-face 'highlight)
-    (let ((file-begining (+ line-start 2))
-	  (file-ending line-end))
-      (put-text-property file-begining file-ending 'keymap prepare/keymap)
-      (put-text-property file-begining file-ending 'face '(:foreground "#96a6c8"))))
-  
-  (defun prepare-file->buffer->global_var ()
-    (when (file-regular-p prepare-file)
-      (with-temp-buffer
-	(insert-file-contents prepare-file)
-	(while (not (eobp))
-	  (let* ((lb (line-beginning-position))
-		 (le (line-end-position))
-		 (current-line (buffer-substring lb le)))
-	    (when (> (length current-line) 0)
-	      (add-to-list 'prepare-files-list current-line t)) ; 加在末尾才是正确的
-	    (forward-line))))))
-  
-  (defun prepare-add-whole-property ()
-    (goto-char (point-min))		; 回到开头
-    (while (not (eobp))			; 这里就是遍历整个 buffer，添加属性的部分只能在这里处理
-      (move-beginning-of-line 1)
-      (let* ((lb (line-beginning-position))
-	     (le (line-end-position)))
-	(let ((inhibit-read-only t))
-	  (prepare-add-property lb le))
-	(forward-line 1))))
-
-  ;; == main ==
-  (prepare-file->buffer->global_var)
-  
+  (prepare--file->buffer->global_var)
   (with-current-buffer (get-buffer-create prepare-buf-name)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (prepare-insert-filepath-rec)
-      (prepare-add-whole-property))))
+      (prepare--insert-filepath-rec)
+      (prepare--add-whole-property))))
