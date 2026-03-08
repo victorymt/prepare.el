@@ -88,7 +88,6 @@
 		 (file-ending le))
 	    (prepare--add-property lb le)))))))
 
-;; Bugs 多了上一行结尾的 \n
 (defun prepare-delete-filepath ()
   (interactive)
   (let* ((lb (line-beginning-position))
@@ -98,9 +97,11 @@
     (let ((del-file-path (buffer-substring file-begining file-ending)))
       (setq prepare-files-list (delete del-file-path prepare-files-list)))
     (let ((inhibit-read-only t))
-      (if (= le (point-max))
-	  (delete-region lb le)
-	(delete-region lb (+ le 1))))))
+      (cond ((and (= le (point-max)) (= lb (point-min))) (delete-region lb le))
+	    ((= le (point-max)) (delete-region (- lb 1) le))
+	    ((= lb (point-min)) (delete-region lb le))
+	    (t
+	     (delete-region (- lb 1) le))))))
 
 (defun prepare-set-mark ()
   (interactive)
