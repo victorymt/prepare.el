@@ -68,7 +68,7 @@
       (with-current-buffer (get-buffer-create prepare-buf-name)
 	(let ((inhibit-read-only t))
 	  (goto-char (point-max))
-	  (insert "\n")
+	  (insert "\n")			; Bugs 只有一行删除后插入会在第二行插入
 	  (move-beginning-of-line 1)
 	  (insert "  ")
 	  (insert filepath)
