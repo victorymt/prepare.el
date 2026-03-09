@@ -11,6 +11,12 @@
 
 ;;; global
 
+(defun prepare-extra-open-all-file ()
+  (interactive)
+  (prepare--file->buffer->global_var)
+  (dolist (file prepare-files-list)
+    (find-file-noselect file)))
+
 (defun prepare-add-current-buffer-file ()
   (interactive)
   (let  ((current-file (buffer-file-name)))
