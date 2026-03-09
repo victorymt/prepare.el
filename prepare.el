@@ -27,7 +27,7 @@
   (interactive)
   (let  ((current-file (buffer-file-name)))
     (unless (null current-file)
-      (setq prepare-files-list (delete del-file-path prepare-files-list)))))
+      (setq prepare-files-list (delete current-file prepare-files-list)))))
 
 (defun prepare-save-current-file-lists ()
   (save-to-file))
