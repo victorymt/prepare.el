@@ -8,6 +8,9 @@
 (defvar prepare-files-list '())
 (defvar prepare-marked-files-list '())
 
+(defmacro with-prepare-buffer (&rest body)
+  `(with-current-buffer (get-buffer-create prepare-buf-name)
+     ,@body))
 
 ;;; global
 
@@ -71,18 +74,18 @@
 	(old-files-list prepare-files-list))
     (add-to-list 'prepare-files-list filepath t) 
     (unless (equal old-files-list prepare-files-list)
-      (with-current-buffer (get-buffer-create prepare-buf-name)
-	(let ((inhibit-read-only t))
-	  (goto-char (point-max))
-	  (unless (= (point-max) (point-min))
-	    (insert "\n"))		      
-	  (move-beginning-of-line 1)
-	  (insert "  ")
-	  (insert filepath)
-	  
-	  (let* ((lb (line-beginning-position))
-		 (le (line-end-position)))
-	    (prepare--add-property lb le)))))))
+      (with-prepare-buffer
+       (let ((inhibit-read-only t))
+	 (goto-char (point-max))
+	 (unless (= (point-max) (point-min))
+	   (insert "\n"))		      
+	 (move-beginning-of-line 1)
+	 (insert "  ")
+	 (insert filepath)
+	 
+	 (let* ((lb (line-beginning-position))
+		(le (line-end-position)))
+	   (prepare--add-property lb le)))))))
 
 (defun prepare-delete-filepath ()
   (interactive)
@@ -116,28 +119,27 @@
 	(inhibit-read-only t))
     (subst-char-in-region lb (+ lb 1) ?D ?\s)))
 
-;; 这里 dired 使用了 正则表达式，我就先暴力遍历所有吧
 (defun prepare-get-marked-files ()
   (interactive)
-  (with-current-buffer (get-buffer-create prepare-buf-name)
-    (goto-char (point-min))
-    (while (not (eobp))
-      (let* ((lb (line-beginning-position))
-	     (le (line-end-position))
-	     (current-line (buffer-substring lb le)))
-	(when (eql ?D (char-after lb))
-	  (let ((file (prepare--get-filename current-line)))
-	    (add-to-list 'prepare-marked-files-list file))))
-      (forward-line 1))))
+  (with-prepare-buffer
+   (goto-char (point-min))
+   (while (not (eobp))
+     (let* ((lb (line-beginning-position))
+	    (le (line-end-position))
+	    (current-line (buffer-substring lb le)))
+       (when (eql ?D (char-after lb))
+	 (let ((file (prepare--get-filename current-line)))
+	   (add-to-list 'prepare-marked-files-list file))))
+     (forward-line 1))))
 
 ;; 根据 prepare-files-list 更新 prepare-buf
 (defun prepare-refresh ()
   (interactive)
-  (with-current-buffer (get-buffer-create prepare-buf-name)
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (prepare--insert-filepath-rec)
-      (prepare--add-whole-property))))
+  (with-prepare-buffer
+   (let ((inhibit-read-only t))
+     (erase-buffer)
+     (prepare--insert-filepath-rec)
+     (prepare--add-whole-property))))
 
 (defun prepare-delete-marked-filepath ()
   (interactive)
@@ -162,14 +164,15 @@
 	(let ((chosen-file-path (buffer-substring file-begining file-ending)))
 	  (let ((renamed-file-path (read-file-name "Rename: " chosen-file-path)))
 	    (setq prepare-files-list (cl-subst renamed-file-path chosen-file-path prepare-files-list :test #'equal))
-	    (with-current-buffer (get-buffer-create prepare-buf-name)
-	      (let ((inhibit-read-only t))
-		(delete-region lb le)
-		(insert "  ")
-		(insert renamed-file-path)
-		(let ((nle (line-end-position)))
-		  (prepare--add-property lb nle))))))
+	    (with-prepare-buffer
+	     (let ((inhibit-read-only t))
+	       (delete-region lb le)
+	       (insert "  ")
+	       (insert renamed-file-path)
+	       (let ((nle (line-end-position)))
+		 (prepare--add-property lb nle))))))
       (message "Empty!"))))
+
 
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
@@ -245,11 +248,11 @@
   (setq-local buffer-read-only t)
   (setq mode-name "Prepare")
   (prepare--file->buffer->global_var)
-  (with-current-buffer (get-buffer-create prepare-buf-name)
-    (let ((inhibit-read-only t))
-      (erase-buffer)
-      (prepare--insert-filepath-rec)
-      (prepare--add-whole-property))))
+  (with-prepare-buffer
+   (let ((inhibit-read-only t))
+     (erase-buffer)
+     (prepare--insert-filepath-rec)
+     (prepare--add-whole-property))))
 
 (defun prepare-start-mode ()
   (interactive)
