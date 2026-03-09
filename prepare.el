@@ -75,8 +75,6 @@
 	  
 	  (let* ((lb (line-beginning-position))
 		 (le (line-end-position))
-		 (file-begining (+ lb 2))
-		 (file-ending le))
 	    (prepare--add-property lb le)))))))
 
 (defun prepare-delete-filepath ()
@@ -146,6 +144,23 @@
   (prepare--file->buffer->global_var)
   (prepare-refresh))
 
+;; Bugs
+(defun prepare-rename-filepath ()
+  (interactive)
+  (let* ((lb (line-beginning-position))
+	 (le (line-end-position))
+	 (file-begining (+ lb 2))
+	 (file-ending le))
+    (let ((chosen-file-path (buffer-substring file-begining file-ending)))
+      (let ((renamed-file-path (read-file-name "Rename: " chosen-file-path)))
+	(with-current-buffer (get-buffer-create prepare-buf-name)
+	  (let ((inhibit-read-only t))
+	    (delete-region lb le)
+	    (insert "  ")
+	    (insert renamed-file-path)
+	    (let ((nle (line-end-position)))
+	      (prepare--add-property lb nle))))))))
+
 (defvar-keymap prepare-key-map
   "n" #'prepare-next-line
   "p" #'prepare-previous-line
@@ -156,7 +171,8 @@
   "x" #'prepare-delete-marked-filepath
   "C-s" #'save-to-file
   "g" #'prepare-refresh
-  "r" #'prepare-reset)
+  "r" #'prepare-reset
+  "R" #'prepare-rename-filepath)
 
 (defun prepare-start-mode ()
   (interactive)
