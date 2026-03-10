@@ -1,4 +1,12 @@
 ;; prepare file mode
+;; 一行 {mark, filepath}
+;; 有时候我们需要的是 position
+;;   此时我们需要知道 line 的 position
+;; 有时候我们需要的是 filepath :: string
+;;   这里可以通过两种方式 1. 先获得 line 的 string
+;;                     2. 先获得 line 的 position
+;; 结论：我们更需要 position,再通过 line 的 position 获得 filepath 的 position 和 string
+
 
 (require 'cl-lib)
 (setq debug-on-error t)
@@ -38,7 +46,6 @@
 (global-set-key (kbd "C-c b") #'prepare-add-current-buffer-file)
 (global-set-key (kbd "C-c r") #'prepare-remove-current-buffer-file)
 ;;;
-
 
 (defun prepare/map ()
   (interactive)
@@ -87,25 +94,31 @@
 		(le (line-end-position)))
 	   (prepare--add-property lb le)))))))
 
+;; (defmacro with-current-line (func)
+;;   (let* ((lb (line-beginning-position))
+;; 	 (le (line-end-position)))
+;;     (,func lb le)))
+
+;; 没有设置 prepare buffer
 (defun prepare-delete-filepath ()
   (interactive)
-  (let* ((lb (line-beginning-position))
-	 (le (line-end-position))
-	 (file-begining (+ lb 2))
-	 (file-ending le))
-    (if (not (= lb le))
-      (let ((del-file-path (buffer-substring file-begining file-ending)))
-	(setq prepare-files-list (delete del-file-path prepare-files-list))
-	(let ((inhibit-read-only t))
-	  (cond ((and (= le (point-max)) (= lb (point-min))) (delete-region lb le))
-		((= le (point-max)) (delete-region (- lb 1) le))
-		((= lb (point-min)) (delete-region lb (+ le 1)))
-		(t
-		 (delete-region (- lb 1) le)))
-	  (message "Delete: %s" del-file-path)))
-      (message "Empty!"))))
+  (with-prepare-buffer
+   (let* ((lb (line-beginning-position))
+	  (le (line-end-position))
+	  (file-begining (+ lb 2))
+	  (file-ending le))
+     (if (not (= lb le))
+	 (let ((del-file-path (buffer-substring file-begining file-ending)))
+	   (setq prepare-files-list (delete del-file-path prepare-files-list))
+	   (let ((inhibit-read-only t))
+	     (cond ((and (= le (point-max)) (= lb (point-min))) (delete-region lb le))
+		   ((= le (point-max)) (delete-region (- lb 1) le))
+		   ((= lb (point-min)) (delete-region lb (+ le 1)))
+		   (t
+		    (delete-region (- lb 1) le)))
+	     (message "Delete: %s" del-file-path)))
+       (message "Empty!")))))
 
-;; 现在有个问题，mark unmark 都只是单纯的加个标记，于是还需要额外的函数去获得被标记的列表，不过似乎不是什么大问题，列表也不可能太大。
 (defun prepare-set-mark ()
   (interactive)
   (let ((lb (line-beginning-position)))
