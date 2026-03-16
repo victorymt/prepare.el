@@ -32,13 +32,15 @@
   (interactive)
   (let  ((current-file (buffer-file-name)))
     (unless (null current-file)
-      (add-to-list 'prepare-files-list current-file t))))
+      (add-to-list 'prepare-files-list current-file t)
+      (message "Added %s" current-file))))
 
 (defun prepare-remove-current-buffer-file ()
   (interactive)
   (let  ((current-file (buffer-file-name)))
     (unless (null current-file)
-      (setq prepare-files-list (delete current-file prepare-files-list)))))
+      (setq prepare-files-list (delete current-file prepare-files-list))
+      (message "Removed %s" current-file))))
 
 (defun prepare-save-current-file-lists ()
   (save-to-file))
