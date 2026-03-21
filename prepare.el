@@ -7,7 +7,7 @@
 ;;                     2. 先获得 line 的 position
 ;; 结论：我们更需要 position,再通过 line 的 position 获得 filepath 的 position 和 string
 
-
+;; 现在我想给它加上 note 
 (require 'cl-lib)
 (setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
@@ -257,7 +257,20 @@
       (let ((inhibit-read-only t))
 	(prepare--add-property lb le))
       (forward-line 1))))
- 
+
+;; 重新构建一下 global_var 的结构
+;; ((var . val) (var . val)) 以这种形式
+;; 就是： (("/usr/bin/" . "note1") ("/user/local/" . "note2"))
+
+;; 这样，就没有 prepare--file->buffer->global_var 这个奇葩的东西了
+;; 在正式的修改前，我需要先重构一下，保持原来的逻辑，让这个 global_var 相关的函数变成原子的。
+;; struct of global_var:
+;; (item1 item2 item3...)
+;; (preapre--build-item filepath note)
+;; (prepare--item-filepath item)
+;; (prepare--item-note item)
+;; 还有就是添加属性是根据 point 来决定的
+;; 我需要函数去返回一行中 item 中的各项的位置
 (define-derived-mode prepare-file-mode text-mode "Prepare"
   (use-local-map prepare-key-map)
   (setq-local buffer-read-only t)
