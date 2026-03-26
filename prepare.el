@@ -7,7 +7,9 @@
 ;;                     2. 先获得 line 的 position
 ;; 结论：我们更需要 position,再通过 line 的 position 获得 filepath 的 position 和 string
 
-;; 现在我想给它加上 note 
+;; 现在我想给它加上 note
+
+
 (require 'cl-lib)
 (setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
@@ -22,6 +24,7 @@
 
 ;;; global
 
+;; 加入即时的保存
 (defun prepare-extra-open-all-file ()
   (interactive)
   (prepare--file->buffer->global_var)
@@ -32,21 +35,24 @@
   (interactive)
   (let  ((current-file (buffer-file-name)))
     (unless (null current-file)
-      (add-to-list 'prepare-files-list current-file t)
+      (add-to-list 'prepare-files-list current-file t) ; 这里会自动去重
+      (save-to-file)			; Q: 我是否需要更新 *prepare* buffer 的显示
       (message "Added %s" current-file))))
 
 (defun prepare-remove-current-buffer-file ()
   (interactive)
   (let  ((current-file (buffer-file-name)))
     (unless (null current-file)
-      (setq prepare-files-list (delete current-file prepare-files-list))
+      (setq prepare-files-list (delete current-file prepare-files-list)) ; 如果当前文件不存在 delete 会直接返回原列表
+      (save-to-file)
       (message "Removed %s" current-file))))
 
+;; TODO prepare-save-current-file-lists 和 save-to-file 有什么不同吗，为什么要包装一下
 (defun prepare-save-current-file-lists ()
   (save-to-file))
 
-(global-set-key (kbd "C-c b") #'prepare-add-current-buffer-file)
-(global-set-key (kbd "C-c r") #'prepare-remove-current-buffer-file)
+(global-set-key (kbd "C-c b") #'prepare-add-current-buffer-file) ; backup
+(global-set-key (kbd "C-c r") #'prepare-remove-current-buffer-file) ; remove
 ;;;
 
 (defun prepare/map ()
