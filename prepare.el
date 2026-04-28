@@ -9,7 +9,6 @@
 
 ;; 现在我想给它加上 note
 
-
 (require 'cl-lib)
 (setq debug-on-error t)
 (defvar prepare-buf-name "*prepare*")
@@ -292,3 +291,5 @@
   (interactive)
   (switch-to-buffer (get-buffer-create prepare-buf-name)) 
   (prepare-file-mode))
+
+(provide 'prepare)
